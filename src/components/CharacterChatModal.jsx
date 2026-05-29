@@ -147,6 +147,21 @@ function ChatModalInner({ character, isOpen, onClose, ipId }) {
     }
   }, [isOpen])
 
+  // Track visualViewport height for keyboard-safe chat sizing
+  useEffect(() => {
+    if (!isOpen) return
+    const update = () => {
+      const h = window.visualViewport?.height || window.innerHeight
+      document.documentElement.style.setProperty('--vvh', h + 'px')
+    }
+    update()
+    window.visualViewport?.addEventListener('resize', update)
+    return () => {
+      window.visualViewport?.removeEventListener('resize', update)
+      document.documentElement.style.removeProperty('--vvh')
+    }
+  }, [isOpen])
+
   // ── Send — PRESERVED EXACTLY from original ──
   const handleSend = useCallback(async () => {
     if (!inputText.trim() || isLoading || !character) return
@@ -408,7 +423,7 @@ function ChatModalInner({ character, isOpen, onClose, ipId }) {
         <textarea ref={inputRef} value={inputText} onChange={e=>setInputText(e.target.value)}
           onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend()}}}
           placeholder={language==='ko'?`${charName}에게 메시지...`:`Message ${charName}...`}
-          className="flex-1 px-3 py-2.5 bg-void border border-terminal/20 text-terminal font-mono text-sm resize-none rounded focus:outline-none focus:border-terminal/50"
+          className="flex-1 px-3 py-2.5 bg-void border border-terminal/20 text-terminal font-mono text-base resize-none rounded focus:outline-none focus:border-terminal/50"
           rows={1}
           style={{ minHeight: 44, maxHeight: 80 }} disabled={isLoading}/>
         <button onClick={handleSend} disabled={isLoading||!inputText.trim()}
