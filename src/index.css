@@ -210,45 +210,35 @@ body {
   inset: 0;
   z-index: 300;
   background: #050505;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
 }
 
-/* Flex layout: canvas area + controls side by side in landscape */
-.game-fs-layout {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  gap: 8px;
-}
-
-/* Canvas area: takes all available space, keeps aspect ratio */
+/* Canvas area in fullscreen — centered, fills available space */
 .game-fs-canvas-area {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
+  position: fixed;
+  inset: 0;
+  z-index: 301;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-left: 140px; /* space for D-pad on left */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-right: env(safe-area-inset-right, 8px);
+  pointer-events: none;
 }
 .game-fs-canvas-area canvas {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
+  pointer-events: auto;
 }
 
-/* Controls: fixed width on the right */
-.game-fs-controls {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
+/* D-pad on left side in fullscreen */
+.game-fs-controls-left {
+  position: fixed;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 302;
+  padding-left: env(safe-area-inset-left, 0px);
 }
 
 ::-webkit-scrollbar { width: 4px; }

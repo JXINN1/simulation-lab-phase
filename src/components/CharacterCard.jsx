@@ -56,9 +56,6 @@ const CharacterCard = ({ character, onClick, index }) => {
           animate={{ scale: isHovered ? 1.1 : 1 }} transition={{ duration: 0.4 }} />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 40%, rgba(5,5,5,0.95) 100%)' }} />
         
-        <div className="absolute top-2 left-2 px-2 py-0.5 bg-void/80 border rounded-sm" style={{ borderColor: `${character.color}50` }}>
-          <span className="font-mono text-[9px]" style={{ color: `${character.color}90` }}>{character.codename}</span>
-        </div>
         <div className="absolute top-2 right-2">
           <motion.div className="w-2 h-2 rounded-full" style={{ backgroundColor: threatColor() }}
             animate={isHovered ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.5, repeat: Infinity }} />
@@ -75,7 +72,14 @@ const CharacterCard = ({ character, onClick, index }) => {
         )}
       </div>
 
-      <div className="p-3">
+      {/* Codename badge — below portrait, above name */}
+      {character.codename && (
+        <div className="px-1.5 mx-2 mt-1 mb-0">
+          <span className="font-mono text-[7px] tracking-wider" style={{ color: `${character.color}70` }}>{character.codename}</span>
+        </div>
+      )}
+
+      <div className="px-2 pb-2 pt-0.5">
         <h3 className="font-orbitron font-bold text-sm mb-1 truncate" style={{ color: character.color }}>{displayName}</h3>
         <p className="font-mono text-[10px] text-terminal/50 truncate">{charRole}</p>
       </div>

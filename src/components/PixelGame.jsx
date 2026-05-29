@@ -6,8 +6,6 @@ import {
 import { useLanguage } from '../i18n/LanguageContext'
 
 const DEFAULT_SPRITE_SIZE = 66
-// True aspect ratio from the map grid
-const CANVAS_ASPECT = MAP_WIDTH / MAP_HEIGHT  // 30/12 = 2.5
 
 const PixelGame = ({ onNpcCollision, highlightedCharacter, isChatOpen, ipId, characters = [] }) => {
   const { language } = useLanguage()
@@ -16,30 +14,21 @@ const PixelGame = ({ onNpcCollision, highlightedCharacter, isChatOpen, ipId, cha
   const spritesLoadedRef = useRef({})
   const portraitImagesRef = useRef({})
 
-  const playerRef = useRef({
-    x: PLAYER_START.x,
-    y: PLAYER_START.y,
-    direction: 'down',
-    isMoving: false
-  })
-
+  const playerRef = useRef({ x: PLAYER_START.x, y: PLAYER_START.y, direction: 'down', isMoving: false })
   const npcsRef = useRef([])
   const prevCharsRef = useRef(null)
-
   const [dpadDir, setDpadDir] = useState(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const dpadRef = useRef(null)
-
   const keysPressed = useRef({})
   const animationRef = useRef(null)
   const lastCollisionRef = useRef({ npcId: null, time: 0 })
 
-  // Rebuild NPCs when characters change
+  // Rebuild NPCs
   useEffect(() => {
     const charIds = characters.map(c => c.id).sort().join(',')
     if (charIds === prevCharsRef.current) return
     prevCharsRef.current = charIds
-
     npcsRef.current = characters
       .filter(c => c.canChat !== false && c.id !== 'boy')
       .map((c, i) => {
@@ -59,9 +48,9 @@ const PixelGame = ({ onNpcCollision, highlightedCharacter, isChatOpen, ipId, cha
   // Load sprites
   useEffect(() => {
     if (!spritesLoadedRef.current['boy']) {
-      const boyImg = new Image()
-      boyImg.onload = () => { spritesRef.current['boy'] = boyImg; spritesLoadedRef.current['boy'] = true }
-      boyImg.src = '/characters/boy.png'
+      const img = new Image()
+      img.onload = () => { spritesRef.current['boy'] = img; spritesLoadedRef.current['boy'] = true }
+      img.src = '/characters/boy.png'
     }
     characters.forEach(c => {
       if (c.id === 'boy') return
@@ -72,42 +61,35 @@ const PixelGame = ({ onNpcCollision, highlightedCharacter, isChatOpen, ipId, cha
         img.src = c.spriteUrl
       }
       if (c.portraitUrl && !portraitImagesRef.current[c.id]) {
-        const pImg = new Image()
-        pImg.onload = () => { portraitImagesRef.current[c.id] = pImg }
-        pImg.src = c.portraitUrl
+        const p = new Image()
+        p.onload = () => { portraitImagesRef.current[c.id] = p }
+        p.src = c.portraitUrl
       }
     })
   }, [characters])
 
-  // Lock body scroll in fullscreen
   useEffect(() => {
-    if (isFullscreen) {
-      document.body.style.overflow = 'hidden'
-      return () => { document.body.style.overflow = '' }
-    }
+    if (isFullscreen) { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = '' } }
   }, [isFullscreen])
 
   const canMove = useCallback((x, y) => {
     if (x < 0.3 || x > MAP_WIDTH - 0.3 || y < 0.3 || y > MAP_HEIGHT - 0.3) return false
-    const tileX = Math.floor(x); const tileY = Math.floor(y)
-    if (tileX < 0 || tileX >= MAP_WIDTH || tileY < 0 || tileY >= MAP_HEIGHT) return false
-    return HOSPITAL_MAP[tileY]?.[tileX] === 0
+    const tx = Math.floor(x), ty = Math.floor(y)
+    if (tx < 0 || tx >= MAP_WIDTH || ty < 0 || ty >= MAP_HEIGHT) return false
+    return HOSPITAL_MAP[ty]?.[tx] === 0
   }, [])
 
   const checkNpcCollision = useCallback((player) => {
-    const npcs = npcsRef.current; const now = Date.now()
-    for (const npc of npcs) {
-      const dx = npc.x - player.x; const dy = npc.y - player.y
-      const distance = Math.sqrt(dx * dx + dy * dy)
-      if (distance < 0.9) {
-        let isFacing = false
-        if (player.direction === 'up' && dy < -0.2) isFacing = true
-        if (player.direction === 'down' && dy > 0.2) isFacing = true
-        if (player.direction === 'left' && dx < -0.2) isFacing = true
-        if (player.direction === 'right' && dx > 0.2) isFacing = true
-        const timeSince = now - lastCollisionRef.current.time
-        const isSame = lastCollisionRef.current.npcId === npc.id
-        if (isFacing && (!isSame || timeSince > 2000)) return npc
+    const now = Date.now()
+    for (const npc of npcsRef.current) {
+      const dx = npc.x - player.x, dy = npc.y - player.y
+      if (Math.sqrt(dx * dx + dy * dy) < 0.9) {
+        let facing = false
+        if (player.direction === 'up' && dy < -0.2) facing = true
+        if (player.direction === 'down' && dy > 0.2) facing = true
+        if (player.direction === 'left' && dx < -0.2) facing = true
+        if (player.direction === 'right' && dx > 0.2) facing = true
+        if (facing && (lastCollisionRef.current.npcId !== npc.id || now - lastCollisionRef.current.time > 2000)) return npc
       }
     }
     return null
@@ -118,121 +100,86 @@ const PixelGame = ({ onNpcCollision, highlightedCharacter, isChatOpen, ipId, cha
     onNpcCollision(npc.id)
   }, [onNpcCollision])
 
-  // Keyboard input
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const down = (e) => {
       if (isChatOpen) return
-      const key = e.key.toLowerCase()
-      if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key)) {
-        e.preventDefault(); keysPressed.current[key] = true
-      }
-      if (key === 'escape' && isFullscreen) setIsFullscreen(false)
+      const k = e.key.toLowerCase()
+      if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) { e.preventDefault(); keysPressed.current[k] = true }
+      if (k === 'escape' && isFullscreen) setIsFullscreen(false)
     }
-    const handleKeyUp = (e) => { keysPressed.current[e.key.toLowerCase()] = false }
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-    return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp) }
+    const up = (e) => { keysPressed.current[e.key.toLowerCase()] = false }
+    window.addEventListener('keydown', down); window.addEventListener('keyup', up)
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
   }, [isChatOpen, isFullscreen])
 
   useEffect(() => { dpadRef.current = dpadDir }, [dpadDir])
 
-  // Game loop
+  // Game loop — runs once, canvas ref stays stable
   useEffect(() => {
     const canvas = canvasRef.current; if (!canvas) return
     const ctx = canvas.getContext('2d'); let lastTime = 0
 
-    const gameLoop = (timestamp) => {
-      const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.1); lastTime = timestamp
-      const player = playerRef.current; const speed = 4 * deltaTime
-      let isMoving = false; const dp = dpadRef.current
+    const gameLoop = (ts) => {
+      const dt = Math.min((ts - lastTime) / 1000, 0.1); lastTime = ts
+      const p = playerRef.current; const spd = 4 * dt; let moving = false; const dp = dpadRef.current
 
-      if (keysPressed.current['w'] || keysPressed.current['arrowup'] || dp === 'up') {
-        player.direction = 'up'; if (canMove(player.x, player.y - speed)) player.y -= speed; isMoving = true
-      } else if (keysPressed.current['s'] || keysPressed.current['arrowdown'] || dp === 'down') {
-        player.direction = 'down'; if (canMove(player.x, player.y + speed)) player.y += speed; isMoving = true
-      } else if (keysPressed.current['a'] || keysPressed.current['arrowleft'] || dp === 'left') {
-        player.direction = 'left'; if (canMove(player.x - speed, player.y)) player.x -= speed; isMoving = true
-      } else if (keysPressed.current['d'] || keysPressed.current['arrowright'] || dp === 'right') {
-        player.direction = 'right'; if (canMove(player.x + speed, player.y)) player.x += speed; isMoving = true
-      }
-      player.isMoving = isMoving
-      if (isMoving) { const c = checkNpcCollision(player); if (c) handleNpcCollision(c) }
+      if (keysPressed.current['w']||keysPressed.current['arrowup']||dp==='up') { p.direction='up'; if(canMove(p.x,p.y-spd))p.y-=spd; moving=true }
+      else if (keysPressed.current['s']||keysPressed.current['arrowdown']||dp==='down') { p.direction='down'; if(canMove(p.x,p.y+spd))p.y+=spd; moving=true }
+      else if (keysPressed.current['a']||keysPressed.current['arrowleft']||dp==='left') { p.direction='left'; if(canMove(p.x-spd,p.y))p.x-=spd; moving=true }
+      else if (keysPressed.current['d']||keysPressed.current['arrowright']||dp==='right') { p.direction='right'; if(canMove(p.x+spd,p.y))p.x+=spd; moving=true }
+      p.isMoving = moving
+      if (moving) { const c = checkNpcCollision(p); if (c) handleNpcCollision(c) }
 
-      // Update NPCs
       npcsRef.current.forEach(npc => {
-        npc.moveTimer += deltaTime
-        if (npc.moveTimer > 2 + Math.random() * 3) {
-          npc.moveTimer = 0
-          const dirs = ['up','down','left','right','idle','idle','idle']
-          npc.direction = dirs[Math.floor(Math.random() * dirs.length)]
-        }
+        npc.moveTimer += dt
+        if (npc.moveTimer > 2 + Math.random() * 3) { npc.moveTimer = 0; npc.direction = ['up','down','left','right','idle','idle','idle'][Math.floor(Math.random()*7)] }
         if (npc.direction !== 'idle') {
-          const ns = 0.5 * deltaTime; let nx = npc.x, ny = npc.y
-          if (npc.direction === 'up') ny -= ns; if (npc.direction === 'down') ny += ns
-          if (npc.direction === 'left') nx -= ns; if (npc.direction === 'right') nx += ns
-          const z = npc.zone
-          if (z) { nx = Math.max(z.minX+0.5, Math.min(z.maxX-0.5, nx)); ny = Math.max(z.minY+0.5, Math.min(z.maxY-0.5, ny)) }
-          const tx = Math.floor(nx), ty = Math.floor(ny), tile = HOSPITAL_MAP[ty]?.[tx]
-          const walkable = npc.walkableTiles || [0]
-          if (tile !== undefined && walkable.includes(tile) && nx >= 0.5 && nx <= MAP_WIDTH-0.5 && ny >= 0.5 && ny <= MAP_HEIGHT-0.5) {
-            npc.x = nx; npc.y = ny
-          } else { npc.direction = ({up:'down',down:'up',left:'right',right:'left'})[npc.direction]||'idle'; npc.moveTimer = 0 }
+          const ns = 0.5*dt; let nx=npc.x, ny=npc.y
+          if(npc.direction==='up')ny-=ns; if(npc.direction==='down')ny+=ns; if(npc.direction==='left')nx-=ns; if(npc.direction==='right')nx+=ns
+          const z=npc.zone; if(z){nx=Math.max(z.minX+.5,Math.min(z.maxX-.5,nx));ny=Math.max(z.minY+.5,Math.min(z.maxY-.5,ny))}
+          const tx=Math.floor(nx),ty=Math.floor(ny),tile=HOSPITAL_MAP[ty]?.[tx]
+          if(tile!==undefined&&(npc.walkableTiles||[0]).includes(tile)&&nx>=.5&&nx<=MAP_WIDTH-.5&&ny>=.5&&ny<=MAP_HEIGHT-.5){npc.x=nx;npc.y=ny}
+          else{npc.direction=({up:'down',down:'up',left:'right',right:'left'})[npc.direction]||'idle';npc.moveTimer=0}
         }
       })
 
-      render(ctx, player, npcsRef.current)
+      // Render
+      ctx.fillStyle='#050505'; ctx.fillRect(0,0,canvas.width,canvas.height)
+      for(let y=0;y<MAP_HEIGHT;y++)for(let x=0;x<MAP_WIDTH;x++){
+        ctx.fillStyle=TILE_COLORS[HOSPITAL_MAP[y][x]]||'#0d1117'; ctx.fillRect(x*TILE_SIZE,y*TILE_SIZE,TILE_SIZE,TILE_SIZE)
+        ctx.strokeStyle='#ffffff08'; ctx.strokeRect(x*TILE_SIZE,y*TILE_SIZE,TILE_SIZE,TILE_SIZE)
+      }
+      npcsRef.current.forEach(n=>{
+        const dl=language==='en'?(n.labelEn||n.label):n.label
+        drawChar(ctx,n.id,n.x,n.y,n.direction,dl,n.color,false,highlightedCharacter===n.id,n.spriteSize)
+      })
+      drawChar(ctx,'boy',p.x,p.y,p.direction,'?','#9d00ff',true,false,DEFAULT_SPRITE_SIZE)
       animationRef.current = requestAnimationFrame(gameLoop)
     }
 
-    const render = (ctx, player, npcs) => {
-      ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, canvas.width, canvas.height)
-      for (let y = 0; y < MAP_HEIGHT; y++) {
-        for (let x = 0; x < MAP_WIDTH; x++) {
-          ctx.fillStyle = TILE_COLORS[HOSPITAL_MAP[y][x]] || '#0d1117'
-          ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE)
-          ctx.strokeStyle = '#ffffff08'; ctx.strokeRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE)
-        }
-      }
-      npcs.forEach(npc => {
-        const dl = language === 'en' ? (npc.labelEn || npc.label) : npc.label
-        drawCharacter(ctx, npc.id, npc.x, npc.y, npc.direction, dl, npc.color, false, highlightedCharacter===npc.id, npc.spriteSize)
-      })
-      drawCharacter(ctx, 'boy', player.x, player.y, player.direction, '?', '#9d00ff', true, false, DEFAULT_SPRITE_SIZE)
-    }
-
-    const drawCharacter = (ctx, spriteId, x, y, direction, label, color, isPlayer, isHL, spriteSize) => {
-      const sprite = spritesRef.current[spriteId]
-      const cx = x*TILE_SIZE+TILE_SIZE/2, cy = y*TILE_SIZE+TILE_SIZE/2
-      const rs = spriteSize || DEFAULT_SPRITE_SIZE, dx = cx-rs/2, dy = cy-rs/2-12
-      if (isHL) { ctx.shadowColor = color; ctx.shadowBlur = 20 }
-      if (sprite && spritesLoadedRef.current[spriteId]) {
-        const useFlipped = FLIPPED_SPRITES.includes(spriteId)
-        const fm = useFlipped ? SPRITE_CONFIG.flipped : SPRITE_CONFIG.standard
-        const fp = fm[direction] || [0,0]
-        ctx.drawImage(sprite, fp[0]*SPRITE_CONFIG.frameWidth, fp[1]*SPRITE_CONFIG.frameHeight, SPRITE_CONFIG.frameWidth, SPRITE_CONFIG.frameHeight, dx, dy, rs, rs)
+    const drawChar = (ctx,sid,x,y,dir,label,color,isP,isHL,ss) => {
+      const spr=spritesRef.current[sid]; const cx=x*TILE_SIZE+TILE_SIZE/2,cy=y*TILE_SIZE+TILE_SIZE/2
+      const rs=ss||DEFAULT_SPRITE_SIZE,dx=cx-rs/2,dy=cy-rs/2-12
+      if(isHL){ctx.shadowColor=color;ctx.shadowBlur=20}
+      if(spr&&spritesLoadedRef.current[sid]){
+        const fm=(FLIPPED_SPRITES.includes(sid)?SPRITE_CONFIG.flipped:SPRITE_CONFIG.standard); const fp=fm[dir]||[0,0]
+        ctx.drawImage(spr,fp[0]*SPRITE_CONFIG.frameWidth,fp[1]*SPRITE_CONFIG.frameHeight,SPRITE_CONFIG.frameWidth,SPRITE_CONFIG.frameHeight,dx,dy,rs,rs)
       } else {
-        const portrait = portraitImagesRef.current[spriteId]
-        if (portrait) {
-          ctx.save(); ctx.beginPath(); ctx.arc(cx, cy-6, 18, 0, Math.PI*2); ctx.clip()
-          ctx.drawImage(portrait, cx-18, cy-24, 36, 36); ctx.restore()
-          ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy-6, 18, 0, Math.PI*2); ctx.stroke()
-        } else {
-          ctx.fillStyle = color; ctx.beginPath(); ctx.arc(cx, cy-6, 20, 0, Math.PI*2); ctx.fill()
-        }
+        const pt=portraitImagesRef.current[sid]
+        if(pt){ctx.save();ctx.beginPath();ctx.arc(cx,cy-6,18,0,Math.PI*2);ctx.clip();ctx.drawImage(pt,cx-18,cy-24,36,36);ctx.restore();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy-6,18,0,Math.PI*2);ctx.stroke()}
+        else{ctx.fillStyle=color;ctx.beginPath();ctx.arc(cx,cy-6,20,0,Math.PI*2);ctx.fill()}
       }
-      ctx.shadowBlur = 0
-      if (!isPlayer) { ctx.fillStyle = color; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center'; ctx.fillText(label, cx, dy-4) }
+      ctx.shadowBlur=0
+      if(!isP){ctx.fillStyle=color;ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.fillText(label,cx,dy-4)}
     }
 
     animationRef.current = requestAnimationFrame(gameLoop)
     return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current) }
   }, [canMove, checkNpcCollision, handleNpcCollision, highlightedCharacter, language])
 
-  const handleCanvasClick = useCallback(() => { canvasRef.current?.focus() }, [])
-  const handleDpadDown = useCallback((dir) => { setDpadDir(dir) }, [])
-  const handleDpadUp = useCallback(() => { setDpadDir(null) }, [])
+  const handleDpadDown = useCallback((dir) => setDpadDir(dir), [])
+  const handleDpadUp = useCallback(() => setDpadDir(null), [])
 
-  // Shared D-pad
   const dpad = (
     <div className="flex items-center justify-center select-none">
       <div className="relative" style={{ width: 120, height: 120 }}>
@@ -246,66 +193,53 @@ const PixelGame = ({ onNpcCollision, highlightedCharacter, isChatOpen, ipId, cha
     </div>
   )
 
-  // Canvas element (reused in both modes — only one renders at a time)
-  const canvasEl = (
-    <canvas
-      ref={canvasRef}
-      width={MAP_WIDTH * TILE_SIZE}
-      height={MAP_HEIGHT * TILE_SIZE}
-      onClick={handleCanvasClick}
-      tabIndex={0}
-      className="rounded cursor-pointer outline-none block"
-      style={{
-        imageRendering: 'pixelated',
-        width: '100%',
-        height: 'auto',
-        aspectRatio: `${MAP_WIDTH} / ${MAP_HEIGHT}`,
-      }}
-    />
-  )
-
-  // ── Fullscreen landscape mode ──
-  if (isFullscreen) {
-    return (
-      <div className="game-fullscreen-overlay">
-        {/* Exit button */}
-        <button onClick={() => setIsFullscreen(false)}
-          className="absolute top-2 right-2 z-10 px-3 py-1.5 text-[10px] font-mono rounded bg-void/80 border border-terminal/40 text-terminal active:bg-terminal/20">
-          ✕ EXIT
-        </button>
-
-        {/* Layout: canvas centered, D-pad on right side for landscape */}
-        <div className="game-fs-layout">
-          <div className="game-fs-canvas-area">
-            {canvasEl}
-          </div>
-          <div className="game-fs-controls">
+  // SINGLE RENDER — canvas is always mounted; CSS switches between inline & fullscreen
+  return (
+    <div className="relative">
+      {/* Fullscreen overlay wrapper — covers screen when active, invisible when not */}
+      {isFullscreen && (
+        <div className="game-fullscreen-overlay">
+          <button onClick={() => setIsFullscreen(false)}
+            className="absolute top-2 right-2 z-10 px-3 py-1.5 text-[10px] font-mono rounded bg-void/80 border border-terminal/40 text-terminal active:bg-terminal/20">
+            ✕ EXIT
+          </button>
+          {/* D-pad on LEFT side (mobile game style) */}
+          <div className="game-fs-controls-left">
             {dpad}
           </div>
         </div>
-      </div>
-    )
-  }
+      )}
 
-  // ── Normal inline mode ──
-  return (
-    <div className="relative">
-      {/* Canvas at original ratio, width=100% of container, height auto from aspect */}
-      <div style={{ border: '1px solid #00ff4130', borderRadius: 4, overflow: 'hidden' }}>
-        {canvasEl}
+      {/* Canvas — always mounted, repositioned via CSS when fullscreen */}
+      <div className={isFullscreen ? 'game-fs-canvas-area' : ''} style={!isFullscreen ? { border: '1px solid #00ff4130', borderRadius: 4, overflow: 'hidden' } : undefined}>
+        <canvas
+          ref={canvasRef}
+          width={MAP_WIDTH * TILE_SIZE}
+          height={MAP_HEIGHT * TILE_SIZE}
+          onClick={() => canvasRef.current?.focus()}
+          tabIndex={0}
+          className="rounded cursor-pointer outline-none block"
+          style={{
+            imageRendering: 'pixelated',
+            ...(isFullscreen
+              ? { maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto' }
+              : { width: '100%', height: 'auto', aspectRatio: `${MAP_WIDTH} / ${MAP_HEIGHT}` }
+            ),
+          }}
+        />
       </div>
 
-      {/* Fullscreen button — mobile only */}
-      <button onClick={() => setIsFullscreen(true)}
-        className="sm:hidden absolute bottom-2 right-2 px-2.5 py-1.5 text-[10px] font-mono rounded bg-void/80 border border-terminal/40 text-terminal active:bg-terminal/20"
-        style={{ zIndex: 5 }}>
-        ⛶ FULL
-      </button>
-
-      {/* D-pad below canvas — mobile only */}
-      <div className="sm:hidden mt-3">
-        {dpad}
-      </div>
+      {/* Normal mode UI (hidden in fullscreen) */}
+      {!isFullscreen && (
+        <>
+          <button onClick={() => setIsFullscreen(true)}
+            className="sm:hidden absolute bottom-2 right-2 px-2.5 py-1.5 text-[10px] font-mono rounded bg-void/80 border border-terminal/40 text-terminal active:bg-terminal/20"
+            style={{ zIndex: 5 }}>
+            ⛶ FULL
+          </button>
+          <div className="sm:hidden mt-3">{dpad}</div>
+        </>
+      )}
     </div>
   )
 }

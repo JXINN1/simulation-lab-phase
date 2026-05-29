@@ -329,17 +329,18 @@ const WorldTab = ({ selectedIpId, ipCharacters, npcCharacters, relationships, hi
         })}
       </div>
 
-      {/* Mobile: two rows — Row 1: first 3 chars, Row 2: remaining 2 chars, all same size */}
-      <div className="sm:hidden space-y-3">
-        {/* Row 1: Aran, Noah, Haein (first 3) */}
-        <div className="grid grid-cols-3 gap-2">
+      {/* Mobile: staggered layout — Row 1: 3 cards, Row 2: 2 cards offset between row 1 */}
+      <div className="sm:hidden">
+        <div className="grid grid-cols-6 gap-x-1.5 gap-y-3">
+          {/* Row 1: Aran (col 1-2), Noah (col 3-4), Haein (col 5-6) */}
           {npcCharacters.slice(0, 3).map((char, index) => {
             const rel = relationships[`${selectedIpId}:${char.id}`]
             const totalTurns = rel?.totalTurns || 0
             const isSynced = totalTurns >= 3
             const legacyChar = mapToLegacyFormat(char, language)
+            const colStart = index * 2 + 1
             return (
-              <motion.div key={char.id} className="relative pt-2">
+              <motion.div key={char.id} className="relative pt-2" style={{ gridColumn: `${colStart} / span 2` }}>
                 <div className="absolute top-0 left-0 right-0 z-10 flex justify-center">
                   <div className="px-1.5 py-0.5 rounded text-[8px] font-bold font-mono"
                     style={{ backgroundColor: isSynced ? 'rgba(0,255,65,0.2)' : '#0a0a0a', border: `1px solid ${isSynced ? '#00ff41' : char.color}50`, color: isSynced ? '#00ff41' : char.color }}>
@@ -356,16 +357,15 @@ const WorldTab = ({ selectedIpId, ipCharacters, npcCharacters, relationships, hi
               </motion.div>
             )
           })}
-        </div>
-        {/* Row 2: Director, Guard (remaining 2) — centered with same card width as row 1 */}
-        <div className="grid grid-cols-3 gap-2">
+          {/* Row 2: Director (col 2-3, between Aran & Noah), Guard (col 4-5, between Noah & Haein) */}
           {npcCharacters.slice(3, 5).map((char, index) => {
             const rel = relationships[`${selectedIpId}:${char.id}`]
             const totalTurns = rel?.totalTurns || 0
             const isSynced = totalTurns >= 3
             const legacyChar = mapToLegacyFormat(char, language)
+            const colStart = index * 2 + 2
             return (
-              <motion.div key={char.id} className="relative pt-2" style={index === 0 ? { gridColumn: '1' } : { gridColumn: '3' }}>
+              <motion.div key={char.id} className="relative pt-2" style={{ gridColumn: `${colStart} / span 2` }}>
                 <div className="absolute top-0 left-0 right-0 z-10 flex justify-center">
                   <div className="px-1.5 py-0.5 rounded text-[8px] font-bold font-mono"
                     style={{ backgroundColor: isSynced ? 'rgba(0,255,65,0.2)' : '#0a0a0a', border: `1px solid ${isSynced ? '#00ff41' : char.color}50`, color: isSynced ? '#00ff41' : char.color }}>
