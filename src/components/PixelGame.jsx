@@ -194,15 +194,28 @@ const PixelGame = ({ onNpcCollision, highlightedCharacter, isChatOpen, ipId, cha
     return () => { if(animationRef.current) cancelAnimationFrame(animationRef.current) }
   }, [isFullscreen, stageDims, canMove, checkNpcCollision, handleNpcCollision, highlightedCharacter, language])
 
-  const handleDpadDown = useCallback((dir) => setDpadDir(dir), [])
-  const handleDpadUp = useCallback(() => setDpadDir(null), [])
+  // D-pad: tap = one step. Auto-clears after 120ms so character doesn't run forever.
+  const stepTimerRef = useRef(null)
+  const handleDpadTap = useCallback((dir) => {
+    if (stepTimerRef.current) clearTimeout(stepTimerRef.current)
+    setDpadDir(dir)
+    stepTimerRef.current = setTimeout(() => { setDpadDir(null); stepTimerRef.current = null }, 120)
+  }, [])
+  // Safety: always clear on touch end / cancel
+  const handleDpadRelease = useCallback(() => {
+    if (stepTimerRef.current) { clearTimeout(stepTimerRef.current); stepTimerRef.current = null }
+    setDpadDir(null)
+  }, [])
+
   const Dpad = () => (
     <div className="select-none">
       <div className="relative" style={{ width: 100, height: 100 }}>
         {[['up','▲','left-1/2 top-0 -translate-x-1/2'],['down','▼','left-1/2 bottom-0 -translate-x-1/2'],['left','◀','top-1/2 left-0 -translate-y-1/2'],['right','▶','top-1/2 right-0 -translate-y-1/2']].map(([d,s,p])=>(
           <button key={d} className={`absolute ${p} w-9 h-9 flex items-center justify-center rounded-lg bg-black/60 border border-terminal/40 text-terminal text-base active:bg-terminal/30`}
-            onTouchStart={e=>{e.preventDefault();handleDpadDown(d)}} onTouchEnd={handleDpadUp}
-            onMouseDown={()=>handleDpadDown(d)} onMouseUp={handleDpadUp} onMouseLeave={handleDpadUp}>{s}</button>
+            onTouchStart={e=>{e.preventDefault();handleDpadTap(d)}}
+            onTouchEnd={e=>{e.preventDefault();handleDpadRelease()}}
+            onTouchCancel={handleDpadRelease}
+            onMouseDown={()=>handleDpadTap(d)} onMouseUp={handleDpadRelease} onMouseLeave={handleDpadRelease}>{s}</button>
         ))}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-terminal/10 border border-terminal/20"/>
       </div>
@@ -254,7 +267,7 @@ const PixelGame = ({ onNpcCollision, highlightedCharacter, isChatOpen, ipId, cha
               onClick={() => setIsFullscreen(false)}
               style={{ position:'absolute', top: 8, right: 8, zIndex: 10, padding: '5px 10px', fontSize: 10, fontFamily: "'Share Tech Mono', monospace", borderRadius: 4, background: 'rgba(5,5,5,0.8)', border: '1px solid rgba(0,255,65,0.4)', color: '#00ff41' }}
             >
-              ✕ EXIT FS-FIX-7
+              ✕ EXIT
             </button>
           </div>
         </div>
